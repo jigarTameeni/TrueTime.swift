@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version = '4.1.5'
   s.summary = 'NTP library for Swift. Get the true time impervious to device clock changes.'
 
-  s.homepage = 'https://github.com/instacart/TrueTime.swift'
+  s.homepage = 'https://github.com/jigarTameeni/TrueTime.swift'
   s.license = { :type => 'Apache License, Version 2.0', :file => 'LICENSE' }
   s.author = { 'Michael Sanders' => 'msanders@instacart.com' }
   s.source = { :git => 'https://github.com/instacart/TrueTime.swift.git', :tag => s.version }
