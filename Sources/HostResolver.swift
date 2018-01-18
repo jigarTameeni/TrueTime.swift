@@ -85,7 +85,6 @@ final class HostResolver {
                 release: nil,
                 copyDescription: nil
             )
-            self.callbackPending = true
 
             if let host = self.host {
                 CFHostSetClient(host, self.hostCallback, &ctx)
@@ -106,18 +105,13 @@ final class HostResolver {
     func stop(waitUntilFinished wait: Bool = false) {
         let work = {
             self.cancelTimer()
-            if let host = self.host {
-                CFHostCancelInfoResolution(host, .addresses)
-                CFHostSetClient(host, nil, nil)
-                CFHostUnscheduleFromRunLoop(host,
-                                            CFRunLoopGetMain(),
-                                            CFRunLoopMode.commonModes.rawValue)
-                self.host = nil
-            }
-            if self.callbackPending {
-                Unmanaged.passUnretained(self).release()
-                self.callbackPending = false
-            }
+            guard let host = self.host else { return }
+            CFHostCancelInfoResolution(host, .addresses)
+            CFHostSetClient(host, nil, nil)
+            CFHostUnscheduleFromRunLoop(host,
+                                        CFRunLoopGetMain(),
+                                        CFRunLoopMode.commonModes.rawValue)
+            self.host = nil
         }
 
         if wait {
@@ -137,12 +131,10 @@ final class HostResolver {
     fileprivate let lockQueue = DispatchQueue(label: "com.instacart.dns.host")
     fileprivate var host: CFHost?
     fileprivate var resolved: Bool = false
-    fileprivate var callbackPending: Bool = false
     private let hostCallback: CFHostClientCallBack = { host, infoType, error, info in
         guard let info = info else { return }
         let retainedClient = Unmanaged<HostResolver>.fromOpaque(info)
         let client = retainedClient.takeUnretainedValue()
-        client.callbackPending = false
         client.connect(host)
         retainedClient.release()
     }

@@ -73,7 +73,7 @@ final class NTPConnection {
     func start(_ callbackQueue: DispatchQueue, onComplete: @escaping NTPConnectionCallback) {
         lockQueue.async {
             guard !self.started else { return }
-            self.callbackPending = true
+
             var ctx = CFSocketContext(
                 version: 0,
                 info: UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque()),
@@ -108,23 +108,18 @@ final class NTPConnection {
     func close(waitUntilFinished wait: Bool = false) {
         let work = {
             self.cancelTimer()
-            if let socket = self.socket, let source = self.source {
-                let disabledFlags = NTPConnection.callbackFlags |
-                                    kCFSocketAutomaticallyReenableDataCallBack |
-                                    kCFSocketAutomaticallyReenableReadCallBack |
-                                    kCFSocketAutomaticallyReenableWriteCallBack |
-                                    kCFSocketAutomaticallyReenableAcceptCallBack
-                CFSocketDisableCallBacks(socket, disabledFlags)
-                CFSocketInvalidate(socket)
-                CFRunLoopRemoveSource(CFRunLoopGetMain(), source, CFRunLoopMode.commonModes)
-                self.socket = nil
-                self.source = nil
-                self.debugLog("Connection closed \(self.address)")
-            }
-            if self.callbackPending {
-                Unmanaged.passUnretained(self).release()
-                self.callbackPending = false
-            }
+            guard let socket = self.socket, let source = self.source else { return }
+            let disabledFlags = NTPConnection.callbackFlags |
+                                kCFSocketAutomaticallyReenableDataCallBack |
+                                kCFSocketAutomaticallyReenableReadCallBack |
+                                kCFSocketAutomaticallyReenableWriteCallBack |
+                                kCFSocketAutomaticallyReenableAcceptCallBack
+            CFSocketDisableCallBacks(socket, disabledFlags)
+            CFSocketInvalidate(socket)
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, CFRunLoopMode.commonModes)
+            self.socket = nil
+            self.source = nil
+            self.debugLog("Connection closed \(self.address)")
         }
 
         if wait {
@@ -149,7 +144,6 @@ final class NTPConnection {
         // Can't use switch here as these aren't defined as an enum.
         if type == .dataCallBack {
             let data = unsafeBitCast(data, to: CFData.self) as Data
-            client.callbackPending = false
             client.handleResponse(data)
             retainedClient.release()
         } else if type == .writeCallBack {
@@ -175,7 +169,6 @@ final class NTPConnection {
     fileprivate var source: CFRunLoopSource?
     fileprivate var startTime: ntp_time_t?
     fileprivate var finished: Bool = false
-    fileprivate var callbackPending: Bool = false
 }
 
 extension NTPConnection: TimedOperation {
